@@ -119,3 +119,40 @@ fn do_part1(data: String) -> usize {
     // Calculate the checksum
     counts.twos * counts.threes
 }
+
+/// Part 2: find two boxes that differ by excactly one letter in the same place
+pub fn part2() {
+    let data = read_to_string("data/day2.txt").unwrap();
+    let answer = do_part2(data);
+    println!("Day2 (Part 2): Answer: {}", answer);
+}
+
+/// Returns the count of letters that are different (in the same position) between two strings
+fn count_different_letters(a: &str, b: &str) -> usize {
+    assert_eq!(a.len(), b.len());
+    a.chars().zip(b.chars()).filter(|(a, b)| a != b).count()
+}
+
+fn do_part2(data: String) -> String {
+    let pair = data
+        .lines()
+        // Compare every line with every other line
+        .flat_map(|line1| data.lines().map(move |line2| (line1, line2)))
+        // We only care about lines that differ by exactly one letter
+        .filter(|(line1, line2)| count_different_letters(line1, line2) == 1)
+        // Take the first one
+        .nth(0)
+        // Unwrap the option
+        .unwrap();
+    // We now have a pair of lines that differ by exactly one letter
+    // We need to return the chars that are the same
+    pair.0
+        .chars()
+        .zip(pair.1.chars())
+        // We only care about chars that are the same
+        .filter(|(a, b)| a == b)
+        // We only want the single char (both are the same now anyway)
+        .map(|(a, _b)| a)
+        // Turn it into a String
+        .collect()
+}
