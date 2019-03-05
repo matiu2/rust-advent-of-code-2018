@@ -34,9 +34,7 @@ fn do_part2(data: String) -> isize {
         })
         // We only care about the one that doubles up
         .filter(|freq| !frequencies.insert(*freq))
-        // Take that one; we're done
-        .take(1)
-        // It thinks `take` will return a lot, but we only want one
+        // We only need the one
         .nth(0);
     answer.unwrap()
 }
