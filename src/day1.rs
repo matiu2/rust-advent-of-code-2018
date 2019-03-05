@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::fs::read_to_string;
 
+/// Takes a series of radio tuning adjustments, and prints the final frequency
 pub fn part1() {
     let data = read_to_string("data/day1.txt").unwrap();
     let answer: isize = data
@@ -16,6 +17,9 @@ pub fn part2() {
     println!("Day 1 (Part 2): {}", answer);
 }
 
+/// Takes a list of \n separated frequency adjustments and starting at 0 finds the current
+/// frequency by accumulating the adjustments. Once it hits the same frequency twice, it returns
+/// that frequency
 fn do_part2(data: String) -> isize {
     let mut frequencies: BTreeSet<isize> = BTreeSet::new();
     frequencies.insert(0);
