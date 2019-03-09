@@ -130,10 +130,10 @@ impl Rect {
             return None;
         }
         Some(Rect {
-            x: left.x,
-            y: high.y,
-            width: right.x - min(self.right(), other.right()),
-            height: low.y - min(self.bottom(), other.bottom()),
+            x: right.x,
+            y: low.y,
+            width: min(self.right(), other.right()) - right.x,
+            height: min(self.bottom(), other.bottom()) - low.y,
         })
     }
 }
@@ -200,4 +200,17 @@ fn test_rect_high_low() {
     let (high, low) = r2.high_low(&r1);
     assert_eq!(high, &r1);
     assert_eq!(low, &r2);
+}
+
+#[test]
+fn test_rect_intersection_1() {
+    let r1 = Rect{x: 3, y: 1, width: 2, height: 6};
+    let r2 = Rect{x: 4, y: 2, width: 2, height: 6};
+    let r3 = r1.intersect(&r2).unwrap();
+    assert_eq!(r3.x, 4);
+    assert_eq!(r3.y, 2);
+    assert_eq!(r3.width, 1);
+    assert_eq!(r3.height, 5);
+    let r4 = r2.intersect(&r1).unwrap();
+    assert_eq!(&r3, &r4)
 }
