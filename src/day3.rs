@@ -1,14 +1,41 @@
-use std::cmp::min;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::read_to_string;
 use std::iter::Iterator;
-use std::ops::Add;
 use std::str::FromStr;
 
 /// Problem: https://adventofcode.com/2018/day/3
 /// You have a fabric with rectangles cut out of it
 /// Find how many square inches of fabric are cut my one or more rectangles
+
+/// Represents a 1x1 point in a cloth
+#[derive(Hash, Debug, PartialEq, Eq, Clone)]
+struct Point {
+    x: usize,
+    y: usize,
+}
+
+/// The sheet of cloth that the elves are cutting holes out of
+struct Sheet {
+    /// Count how many times each hole has had a cut attempt
+    holes: HashMap<Point, usize>,
+}
+
+impl Sheet {
+    /// Cuts a hole in the sheet
+    fn cut(&mut self, rect: &Rect) {
+        // For each x,y point in rect, increase the number of times the point has been cut
+        (rect.x..=rect.right())
+            .into_iter()
+            .flat_map(|x| (rect.y..=rect.bottom()).into_iter().map(move |y| (x, y)))
+            .for_each(|(x, y)| *self.holes.entry(Point { x, y }).or_insert(0) += 1);
+    }
+    /// Return the number of attempted cuts for this square inch
+    #[cfg(test)]
+    fn cut_count(&self, x: usize, y: usize) -> usize {
+        self.holes.get(&Point { x, y }).unwrap_or(&0).clone()
+    }
+}
 
 #[derive(PartialEq, Eq, Debug)]
 struct Rect {
@@ -16,13 +43,6 @@ struct Rect {
     y: usize,
     width: usize,
     height: usize,
-}
-
-/// Represents a 1x1 point in a cloth
-#[derive(Hash, Debug, PartialEq, Eq)]
-struct Point {
-    x: usize,
-    y: usize,
 }
 
 impl FromStr for Rect {
@@ -35,7 +55,6 @@ impl FromStr for Rect {
         let parts: Vec<&str> = s.split_whitespace().collect();
         assert_eq!(parts.len(), 4);
         let (pos, size) = (parts[2], parts[3]);
-        println!("pos: {} - size: {}", pos, size);
         // Parse the pos
         let pos: Result<Vec<usize>, _> = pos
             // Get rid of the ':' on the end
@@ -68,56 +87,11 @@ impl FromStr for Rect {
 impl Rect {
     /// Returns the x value of our right most edge
     fn right(&self) -> usize {
-        self.x + self.width
+        self.x + self.width - 1
     }
     /// Returns the y value of our bottom most edge
     fn bottom(&self) -> usize {
-        self.y + self.height
-    }
-    /// Returns a tuple of (leftest rect, rightest rect) based on x
-    fn left_right<'a>(&'a self, other: &'a Rect) -> (&Rect, &Rect) {
-        if self.x <= other.x {
-            (self, other)
-        } else {
-            (other, self)
-        }
-    }
-    /// Returns the (highest, lowest) based on 'y'
-    fn high_low<'a>(&'a self, other: &'a Rect) -> (&Rect, &Rect) {
-        if self.y <= other.y {
-            (self, other)
-        } else {
-            (other, self)
-        }
-    }
-    // Returns a new rectangle, which is the intersection of two rectangles
-    // If they never intersect, it returns None
-    fn intersect(&self, other: &Rect) -> Option<Rect> {
-        let (left, right) = self.left_right(other);
-        let (high, low) = self.high_low(other);
-        // If the two rectangles never meet horizontally,
-        // or vertically there's no intersection
-        if left.right() < right.x || high.bottom() < low.y {
-            return None;
-        }
-        Some(Rect {
-            x: right.x,
-            y: low.y,
-            width: min(self.right(), other.right()) - right.x,
-            height: min(self.bottom(), other.bottom()) - low.y,
-        })
-    }
-    /// Returns the holes that this rectangle creates
-    fn holes(&self) -> HashSet<Point> {
-        (self.x..=(self.x + self.width))
-            .into_iter()
-            .flat_map(move |x| {
-                (self.y..=(self.y + self.height))
-                    .into_iter()
-                    .map(move |y| (x, y))
-            })
-            .map(|(x, y)| Point { x, y })
-            .collect()
+        self.y + self.height - 1
     }
 }
 
@@ -139,7 +113,7 @@ fn test_rect_right() {
         width: 2,
         height: 6,
     };
-    assert_eq!(r.right(), 5);
+    assert_eq!(r.right(), 4);
 }
 
 #[test]
@@ -150,120 +124,48 @@ fn test_rect_bottom() {
         width: 2,
         height: 6,
     };
-    assert_eq!(r.bottom(), 7);
+    assert_eq!(r.bottom(), 6);
 }
 
 #[test]
-fn test_rect_left_right() {
-    let r1 = Rect {
-        x: 3,
-        y: 1,
-        width: 2,
-        height: 6,
-    };
-    let r2 = Rect {
-        x: 4,
-        y: 2,
-        width: 2,
-        height: 6,
-    };
-    let (left, right) = r1.left_right(&r2);
-    assert_eq!(left, &r1);
-    assert_eq!(right, &r2);
-    let (left, right) = r2.left_right(&r1);
-    assert_eq!(left, &r1);
-    assert_eq!(right, &r2);
-}
-
-#[test]
-fn test_rect_high_low() {
-    let r1 = Rect {
-        x: 3,
-        y: 1,
-        width: 2,
-        height: 6,
-    };
-    let r2 = Rect {
-        x: 4,
-        y: 2,
-        width: 2,
-        height: 6,
-    };
-    let (high, low) = r1.high_low(&r2);
-    assert_eq!(high, &r1);
-    assert_eq!(low, &r2);
-    let (high, low) = r2.high_low(&r1);
-    assert_eq!(high, &r1);
-    assert_eq!(low, &r2);
-}
-
-#[test]
-fn test_rect_intersection_1() {
-    let r1 = Rect {
-        x: 3,
-        y: 1,
-        width: 2,
-        height: 6,
-    };
-    let r2 = Rect {
-        x: 4,
-        y: 2,
-        width: 2,
-        height: 6,
-    };
-    let r3 = r1.intersect(&r2).unwrap();
-    assert_eq!(r3.x, 4);
-    assert_eq!(r3.y, 2);
-    assert_eq!(r3.width, 1);
-    assert_eq!(r3.height, 5);
-    let r4 = r2.intersect(&r1).unwrap();
-    assert_eq!(&r3, &r4)
-}
-
-#[test]
-fn test_rect_holes() {
-    let r = Rect {
-        x: 3,
-        y: 1,
-        width: 2,
-        height: 6,
-    };
-    let holes = r.holes();
-    // Top left
-    assert!(holes.contains(&Point { x: 3, y: 1 }));
-    // Bottom right
-    assert!(holes.contains(&Point { x: 5, y: 7 }));
-    // Too low
-    assert!(!holes.contains(&Point { x: 5, y: 8 }));
-    // Too right
-    assert!(!holes.contains(&Point { x: 6, y: 3 }));
-    // Too high
-    assert!(!holes.contains(&Point { x: 3, y: 0 }));
-    // Too left
-    assert!(!holes.contains(&Point { x: 2, y: 3 }));
-}
-
-pub fn part1() {
-    let input: Vec<Rect> = read_to_string("data/day3.txt")
-        .unwrap()
+fn test_whole_example() {
+    let input = concat!("#1 @ 1,3: 4x4\n", "#2 @ 3,1: 4x4\n", "#3 @ 5,5: 2x2\n");
+    let rects: Vec<Rect> = input
         .lines()
         .map(|line| line.parse::<Rect>().unwrap())
         .collect();
-    // For all the intersections, find all the points that are cut out
-    let holes: HashSet<Point> = input
-        .iter()
-        // Compare every rect with every other rect
-        .flat_map(|a| input.iter().map(move |b| (a, b)))
-        // Ignore pairs that are the same
-        .filter(|(a, b)| a != b)
-        // Flat map treats an the option returned by intersect as an Iterator
-        // So None will just be ignored
-        .flat_map(|(a, b)| a.intersect(b))
-        .map(|intersection| intersection.holes())
-        .fold(HashSet::new(), |part, whole| {
-            whole.union(&part);
-            whole
-        });
+    // First check it has parsed the rects correctly
+    assert_eq!(rects[1].x, 3);
+    assert_eq!(rects[2].y, 5);
+    // Now cut all the holes
+    let mut sheet = Sheet {
+        holes: HashMap::new(),
+    };
+    rects.iter().for_each(|hole| sheet.cut(&hole));
+    assert_eq!(sheet.cut_count(0, 3), 0);
+    assert_eq!(sheet.cut_count(1, 3), 1);
+    assert_eq!(sheet.cut_count(3, 3), 2);
+    let answer = sheet
+        .holes
+        .values()
+        .into_iter()
+        .filter(|cut_count| **cut_count > 1)
+        .count();
+    assert_eq!(answer, 4);
+}
+
+pub fn part1() {
+    // Model the sheet of paper
+    let mut sheet = Sheet {
+        holes: HashMap::new(),
+    };
+    // Cut a bunch of holes in it
+    read_to_string("data/day3.txt")
+        .unwrap()
+        .lines()
+        .map(|line| line.parse::<Rect>().unwrap())
+        .for_each(|hole| sheet.cut(&hole));
+    let answer = sheet.holes.values().filter(|v| **v > 1).count();
     // The count of hole points, is the total area
-    println!("Day3 (part 1): {}", holes.len());
+    println!("Day3 (part 1): {}", answer);
 }
