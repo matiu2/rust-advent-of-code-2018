@@ -148,7 +148,6 @@ fn test_whole_example() {
     let answer = sheet
         .holes
         .values()
-        .into_iter()
         .filter(|cut_count| **cut_count > 1)
         .count();
     assert_eq!(answer, 4);
