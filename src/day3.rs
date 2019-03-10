@@ -39,6 +39,7 @@ impl Sheet {
 
 #[derive(PartialEq, Eq, Debug)]
 struct Rect {
+    id: usize,
     x: usize,
     y: usize,
     width: usize,
@@ -54,7 +55,9 @@ impl FromStr for Rect {
         // #ID  @ LEFT,TOP: WIDTHxHEIGHT
         let parts: Vec<&str> = s.split_whitespace().collect();
         assert_eq!(parts.len(), 4);
-        let (pos, size) = (parts[2], parts[3]);
+        let (id, pos, size) = (parts[0], parts[2], parts[3]);
+        // Parse the ID
+        let id = id.trim_start_matches('#').parse::<usize>().unwrap();
         // Parse the pos
         let pos: Result<Vec<usize>, _> = pos
             // Get rid of the ':' on the end
@@ -76,6 +79,7 @@ impl FromStr for Rect {
             Err(err) => return Err(err.into()),
         };
         Ok(Rect {
+            id,
             x,
             y,
             width,
@@ -93,6 +97,13 @@ impl Rect {
     fn bottom(&self) -> usize {
         self.y + self.height - 1
     }
+    /// Returns true if these two rects intersect
+    fn intersects(&self, other: &Rect) -> bool {
+        self.x <= other.right()
+            && self.right() >= other.x
+            && self.y <= other.bottom()
+            && self.bottom() >= other.y
+    }
 }
 
 #[test]
@@ -108,6 +119,7 @@ fn test_read_rect_from_str() {
 #[test]
 fn test_rect_right() {
     let r = Rect {
+        id: 0,
         x: 3,
         y: 1,
         width: 2,
@@ -119,6 +131,7 @@ fn test_rect_right() {
 #[test]
 fn test_rect_bottom() {
     let r = Rect {
+        id: 0,
         x: 3,
         y: 1,
         width: 2,
@@ -135,6 +148,7 @@ fn test_whole_example() {
         .map(|line| line.parse::<Rect>().unwrap())
         .collect();
     // First check it has parsed the rects correctly
+    assert_eq!(rects[1].id, 2);
     assert_eq!(rects[1].x, 3);
     assert_eq!(rects[2].y, 5);
     // Now cut all the holes
@@ -151,6 +165,12 @@ fn test_whole_example() {
         .filter(|cut_count| **cut_count > 1)
         .count();
     assert_eq!(answer, 4);
+    // Now check the intersections
+    let (r1, r2, r3) = (&rects[0], &rects[1], &rects[2]);
+    assert!(r1.intersects(&r2));
+    assert!(r2.intersects(&r1));
+    assert!(!r1.intersects(&r3));
+    assert!(!r2.intersects(&r3));
 }
 
 pub fn part1() {
@@ -167,4 +187,27 @@ pub fn part1() {
     let answer = sheet.holes.values().filter(|v| **v > 1).count();
     // The count of hole points, is the total area
     println!("Day3 (part 1): {}", answer);
+}
+
+pub fn part2() {
+    // Find out which rectangle doesn't overlap any others
+    let rects: Vec<Rect> = read_to_string("data/day3.txt")
+        .unwrap()
+        .lines()
+        .map(|line| line.parse::<Rect>().unwrap())
+        .collect();
+    let answer = rects
+        .iter()
+        // All other rects should not overlap
+        .filter(|r1| {
+            rects
+                .iter()
+                .filter(|r2| r2 != r1)
+                .all(|r2| !r1.intersects(r2))
+        })
+        .nth(0);
+    match answer {
+        Some(answer) => println!("Day3: part(2): {}", answer.id),
+        None => println!("Day3: part(2): {}", "UNKNOWN"),
+    };
 }
