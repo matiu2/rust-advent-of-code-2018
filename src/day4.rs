@@ -57,3 +57,52 @@ fn test_minute_from_str() {
     assert_eq!(minute.h, 04);
     assert_eq!(minute.n, 28);
 }
+
+/// The different kinds of log entry possible
+#[derive(PartialEq, Eq, Hash, Debug)]
+enum EntryType {
+    /// Guard n started his shift
+    ShiftStart(usize),
+    /// Current guard went to sleep
+    Sleep,
+    /// Current guard woke up
+    Wake,
+}
+
+impl FromStr for EntryType {
+    /// eg. [1518-11-01 00:00] Guard #10 begins shift
+    /// [1518-11-01 00:05] falls asleep
+    /// [1518-11-01 00:25] wakes up
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<EntryType, Self::Err> {
+        // We'll assume that the [date-part] is gone and we're left with everything after "] "
+        use EntryType::*;
+        if s.starts_with("Guard #") {
+            s.splitn(2, '#')
+                .nth(1)
+                .and_then(|s| s.splitn(2, ' ').nth(0))
+                .and_then(|num| num.parse::<usize>().ok())
+                .map_or(Err(format!("Unable to parse guard ID: {} ", s)), |num| {
+                    Ok(ShiftStart(num))
+                })
+        } else if s == "falls asleep" {
+            Ok(Sleep)
+        } else if s == "wakes up" {
+            Ok(Wake)
+        } else {
+            Err(format!("Unrecognised log line: {}", s))
+        }
+    }
+}
+
+#[test]
+fn test_entry_type_parse() {
+    let shift10: EntryType = "Guard #10 begins shift".parse().unwrap();
+    let sleep: EntryType = "falls asleep".parse().unwrap();
+    let wake: EntryType = "wakes up".parse().unwrap();
+    use EntryType::*;
+    assert_eq!(shift10, ShiftStart(10));
+    assert_eq!(sleep, Sleep);
+    assert_eq!(wake, Wake);
+}
