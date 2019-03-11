@@ -7,7 +7,7 @@ use std::str::FromStr;
 /// [1518-11-01 00:05] falls asleep
 /// [1518-11-01 00:25] wakes up
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 struct Minute {
     y: usize,
     m: usize,
@@ -60,7 +60,7 @@ fn test_minute_from_str() {
 }
 
 /// The different kinds of log entry possible
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 enum EventType {
     /// Guard n started his shift
     ShiftStart(usize),
@@ -108,7 +108,7 @@ fn test_entry_type_parse() {
     assert_eq!(wake, Wake);
 }
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 struct LogEntry {
     minute: Minute,
     event: EventType,
@@ -173,4 +173,20 @@ fn test_parse_log_entry() {
             event: EventType::Wake,
         }
     );
+}
+
+#[test]
+/// Make sure we can sort log entries magically
+fn test_log_entry_sort() {
+    let shift10: LogEntry = "[1518-11-01 00:00] Guard #10 begins shift".parse().unwrap();
+    let sleep: LogEntry = "[1518-11-01 00:05] falls asleep".parse().unwrap();
+    let wake: LogEntry = "[1518-11-01 00:25] wakes up".parse().unwrap();
+    // Store the log entries in the reverse order
+    let mut entries: Vec<LogEntry> = vec![wake.clone(), sleep.clone(), shift10.clone()];
+    entries.sort();
+    // Make sure that they are now sorted
+    assert_eq!(entries[0], shift10);
+    assert_eq!(entries[1], sleep);
+    assert_eq!(entries[2], wake);
+
 }
